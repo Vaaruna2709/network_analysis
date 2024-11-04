@@ -1,0 +1,23 @@
+.button {
+    background-color: #2309b9; 
+    color: #fff;
+    display: inline;
+    border: none;
+    padding: 10px 20px; 
+    font-size: 16px; 
+    cursor: pointer; 
+    border-radius: 5px; 
+    margin: 2rem;
+    width: 6rem;
+    transition: background-color 0.3s, transform 0.3s; 
+  }
+  
+  .button:hover {
+    background-color: #221097; 
+    transform: scale(1.05); 
+  }
+  
+  .button:active {
+    background-color: #11088b; 
+    transform: scale(0.98); 
+  }

@@ -19,7 +19,9 @@ export default function Form() {
     const [solution, setSolution] = useState(null);
     const [condition, setCondition] = useState(null);
     const [graphData, setGraphData] = useState({});
-
+    const [error, setError] = useState(null)
+    const [typeCircuit,setTypeCircuit] =useState('')
+    const [explanation,setExplanation] = useState('')
     const handleInputChange = (event) => {
         const { name, value } = event.target;
         setFormValues((prevValues) => ({ ...prevValues, [name]: value }));
@@ -27,49 +29,57 @@ export default function Form() {
 
     const formatLaTeX = (latexString) => {
         return latexString
-            .replace(/\\int\s/g, '\\int \\ ') // Ensure space before the integrals
-            .replace(/\\left\(/g, '(') // Remove \left and \right for cleaner output
+            .replace(/\\int\s/g, '\\int \\ ')
+            .replace(/\\left\(/g, '(')
             .replace(/\\right\)/g, ')')
-            .replace(/\\sin/g, '\\sin') // Properly format sin
-            .replace(/\\cos/g, '\\cos') // Properly format cos
-            .replace(/C_{(\d)}/g, 'C_{ $1 }') // Format C1 and C2 correctly
-            .replace(/V\{\\left\(t\\right\)\}/g, 'V(t)') // Format V(t)
-            .replace(/e\^{/g, 'e^{') // Fix exponent formatting
-            .replace(/\,/g, ', ') // Add space after commas
-            .replace(/([0-9]*\.?[0-9]*)\s*\\cdot/g, '$1 \\cdot ') // Format dot multiplication with space
-            .replace(/\\,/, ' ') // Replace \, with space for better readability
-            .replace(/\\\(/g, '(') // Remove unnecessary escape for parenthesis
-            .replace(/\\\)/g, ')') // Remove unnecessary escape for parenthesis
-            .replace(/e^{-?(\d+(\.\d+)?) t}/g, 'e^{-$1 t}') // Format exponentials
-            .replace(/(C_{1}|C_{2})/g, '$1') // Ensure C1 and C2 are treated as subscripts
-            .replace(/dt/g, ' \\, dt'); // Format differential terms with space
+            .replace(/\\sin/g, '\\sin')
+            .replace(/\\cos/g, '\\cos')
+            .replace(/C_{(\d)}/g, 'C_{ $1 }')
+            .replace(/V\{\\left\(t\\right\)\}/g, 'V(t)')
+            .replace(/e\^{/g, 'e^{')
+            .replace(/\,/g, ', ')
+            .replace(/([0-9]*\.?[0-9]*)\s*\\cdot/g, '$1 \\cdot ')
+            .replace(/\\,/, ' ')
+            .replace(/\\\(/g, '(')
+            .replace(/\\\)/g, ')')
+            .replace(/e^{-?(\d+(\.\d+)?) t}/g, 'e^{-$1 t}')
+            .replace(/(C_{1}|C_{2})/g, '$1')
+            .replace(/dt/g, ' \\, dt');
     };
 
     const handleSubmit = async (event) => {
         event.preventDefault();
         try {
             const response = await axios.post(`http://127.0.0.1:5000/solve/${type}`, formValues);
+         
             if (response.data) {
                 const formattedSolution = formatLaTeX(response.data.solution);
                 // const damping_condition = response.data.damping_condition;
-                const { graph_json, damping_condition } = response.data;
+                const { graph_json, damping_condition,damping_explanation } = response.data;
                 const parsedGraphData = JSON.parse(graph_json);
                 const { data, layout, config } = parsedGraphData;
                 // console.log(graphData)
                 setGraphData({ data, layout, config });
                 console.log(graphData)
-
+                setTypeCircuit(type)
+                // console.log(type)
                 setSolution(formattedSolution);
                 setCondition(damping_condition);
+                setExplanation(damping_explanation)
+                console.log(solution)
             } else {
                 throw new Error('No response data received');
             }
         } catch (error) {
             console.error("Error solving differential equation:", error);
             if (error.response && error.response.data && error.response.data.error) {
-                setSolution(error.response.data.error);
+                // const formattedMessage = error.response.data.error.replace(/\n/g, '<br />');
+                // setSolution(formattedMessage);
+                console.log(error.response.data.error)
+                setError(error.response.data.error)
+
             } else {
-                setSolution('An error occurred while solving the equation');
+                setError('An error occurred while solving the equation');
             }
         }
     };
@@ -78,7 +88,7 @@ export default function Form() {
         <div className="form">
             <div className="form-card">
                 <img src={image} alt={type} className="form-image" />
-                <form onSubmit={handleSubmit} className="form-content" style={{height:'100%'}}>
+                <form onSubmit={handleSubmit} className="form-content" style={{ height: '100%' }}>
                     <div className="form-input-group">
                         <div className="form-inputs">
                             <label htmlFor='R' className="form-label">R :</label>
@@ -96,33 +106,44 @@ export default function Form() {
                     <button type="submit" className="form-button">Submit</button>
                 </form>
             </div>
-            <div className="solution-card">
-                {solution && (
-                    <MathJaxContext>
-                        <div className="solution-content">
-                            <h4>Solution:</h4>
-                            <MathJax inline>{`\\[${solution}\\]`}</MathJax>
-                            <p>{condition}</p>
+            {(error || solution) && (
+                <div className="solution-card">
+                    {error ? (
+                        <div className="error-message">
+                            <p>{error}</p>
                         </div>
-                    </MathJaxContext>
-                )}
-                {graphData.data && graphData.layout && (
-                    <div className="graph">
-                        <Plot
-                            data={graphData.data}
-                            layout={{
-                                ...graphData.layout,
-                                autosize: true,
-                                width: undefined,
-                                height: undefined
-                            }}
-                            config={graphData.config}
-                            useResizeHandler
-                            style={{ width: '90%', height: '100%' }}
-                        />
-                    </div>
-                )}
-            </div>
+                    ) : (
+                        solution && (
+                            <MathJaxContext>
+                                <div className="solution-content">
+                                    <h4>Solution:</h4>
+                                    <MathJax inline>{`\\[${typeCircuit === 'series' ? 'i(t) = ' : 'v(t) = '}${solution}\\]`}</MathJax>
+                                    <p>{condition}</p>
+                                    <p>{explanation}</p>
+                                </div>
+                            </MathJaxContext>
+                        )
+                    )}
+
+                    {graphData.data && graphData.layout && (
+                        <div className="graph">
+                            <Plot
+                                data={graphData.data}
+                                layout={{
+                                    ...graphData.layout,
+                                    autosize: true,
+                                    width: undefined,
+                                    height: undefined
+                                }}
+                                config={graphData.config}
+                                useResizeHandler
+                                style={{ width: '90%', height: '100%' }}
+                            />
+                        </div>
+                    )}
+                </div>
+            )}
+
 
 
         </div>

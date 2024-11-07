@@ -54,6 +54,8 @@ def solve_ode(type):
             alpha = -R_value / (2 * L_value)
             beta = sqrt(abs(alpha**2 - (1 / (L_value * C_value))))
             discriminant = R_value**2 - 4 * L_value * (1 / C_value)
+            alpha = round(alpha, 2)
+            beta = round(beta, 2)
             logging.debug("Circuit type: Series")
     elif type == "parallel":
         if R_value == float('inf'):
@@ -62,6 +64,8 @@ def solve_ode(type):
         else:
             alpha = -1 / (2 * R_value * C_value)
             beta = sqrt(abs(alpha**2 - (1 / (L_value * C_value))))
+            alpha = round(alpha, 2)
+            beta = round(beta, 2)
             discriminant = (1 / (R_value**2)) - (4 * C_value / L_value)
             logging.debug("Circuit type: Parallel")
     else:
@@ -117,8 +121,22 @@ def solve_ode(type):
     # Convert figure to JSON
     graph_json = fig.to_json()
 
-    # Return graph JSON and damping condition
-    return jsonify({'graph_json': graph_json, 'damping_condition': damping_condition, 'solution': solution_latex})
+    # Damping condition explanations
+    damping_explanations = {
+        "Overdamped": "The system is overdamped, meaning it returns to equilibrium without oscillating, but slower than in the critically damped case.",
+        "Underdamped": "The system is underdamped, meaning it oscillates as it returns to equilibrium, but with a gradually decreasing amplitude.",
+        "Critically Damped": "The system is critically damped, meaning it returns to equilibrium as quickly as possible without oscillating.",
+        "Undamped": "The system is undamped, meaning it oscillates indefinitely with constant amplitude."
+    }
+
+    # Return graph JSON, damping condition, solution, and explanation
+    return jsonify({
+        'graph_json': graph_json, 
+        'damping_condition': damping_condition, 
+        'solution': solution_latex,
+        'damping_explanation': damping_explanations[damping_condition]
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+

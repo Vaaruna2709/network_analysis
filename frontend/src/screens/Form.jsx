@@ -1,29 +1,29 @@
 
 
-
 import React, { useState } from 'react';
 import axios from 'axios';
 import './Form.css';
 import { MathJax, MathJaxContext } from 'better-react-mathjax'; // Make sure to install this package
 import { useParams } from 'react-router-dom';
-
+import Plot from 'react-plotly.js';
 export default function Form() {
-    const {type} = useParams()
-    let image='';
-    if(type=='series'){
-        image = '/images/series.png'
-    }else{
-        image = '/images/parallel.png'
+    const { type } = useParams();
+    let image = '';
+    if (type === 'series') {
+        image = '/images/series.png';
+    } else {
+        image = '/images/parallel.png';
     }
-    const [formValues, setFormValues] = useState({ R: "", L: "", C: "" });
+
+    const [formValues, setFormValues] = useState({ "R": "", "L": "", "C": "" });
     const [solution, setSolution] = useState(null);
-    const [condition, setCondition] = useState(null)
+    const [condition, setCondition] = useState(null);
+    const [graphData, setGraphData] = useState({});
+
     const handleInputChange = (event) => {
         const { name, value } = event.target;
         setFormValues((prevValues) => ({ ...prevValues, [name]: value }));
     };
-
-
 
     const formatLaTeX = (latexString) => {
         return latexString
@@ -45,28 +45,40 @@ export default function Form() {
             .replace(/dt/g, ' \\, dt'); // Format differential terms with space
     };
 
-
     const handleSubmit = async (event) => {
         event.preventDefault();
         try {
             const response = await axios.post(`http://127.0.0.1:5000/solve/${type}`, formValues);
-            const formattedSolution = formatLaTeX(response.data.solution);
-            const damping_condition = response.data.damping_condition;
-            setSolution(formattedSolution);
-            setCondition(damping_condition);
-            console.log(formattedSolution)
+            if (response.data) {
+                const formattedSolution = formatLaTeX(response.data.solution);
+                // const damping_condition = response.data.damping_condition;
+                const { graph_json, damping_condition } = response.data;
+                const parsedGraphData = JSON.parse(graph_json);
+                const { data, layout, config } = parsedGraphData;
+                // console.log(graphData)
+                setGraphData({ data, layout, config });
+                console.log(graphData)
+
+                setSolution(formattedSolution);
+                setCondition(damping_condition);
+            } else {
+                throw new Error('No response data received');
+            }
         } catch (error) {
             console.error("Error solving differential equation:", error);
-            setSolution("Error in solving equation.");
+            if (error.response && error.response.data && error.response.data.error) {
+                setSolution(error.response.data.error);
+            } else {
+                setSolution('An error occurred while solving the equation');
+            }
         }
     };
 
     return (
-      
         <div className="form">
-                   <div className="form-card">
+            <div className="form-card">
                 <img src={image} alt={type} className="form-image" />
-                <form onSubmit={handleSubmit} className="form-content">
+                <form onSubmit={handleSubmit} className="form-content" style={{height:'100%'}}>
                     <div className="form-input-group">
                         <div className="form-inputs">
                             <label htmlFor='R' className="form-label">R :</label>
@@ -83,19 +95,37 @@ export default function Form() {
                     </div>
                     <button type="submit" className="form-button">Submit</button>
                 </form>
+            </div>
+            <div className="solution-card">
                 {solution && (
                     <MathJaxContext>
-                        <div className='sol' style={{display:'flex',flexDirection:'column',justifyContent:'center',alignItems:'center',width:'100%'}} >
-                            <h4 style={{ color: '#262626' }}>Solution:</h4>
-                            <MathJax inline style={{ color: '#262626' }}>{`\\[${solution}\\]`}</MathJax>
-                            <p style={{ color: '#262626' }}>{condition}</p>
+                        <div className="solution-content">
+                            <h4>Solution:</h4>
+                            <MathJax inline>{`\\[${solution}\\]`}</MathJax>
+                            <p>{condition}</p>
                         </div>
                     </MathJaxContext>
                 )}
+                {graphData.data && graphData.layout && (
+                    <div className="graph">
+                        <Plot
+                            data={graphData.data}
+                            layout={{
+                                ...graphData.layout,
+                                autosize: true,
+                                width: undefined,
+                                height: undefined
+                            }}
+                            config={graphData.config}
+                            useResizeHandler
+                            style={{ width: '90%', height: '100%' }}
+                        />
+                    </div>
+                )}
             </div>
+
+
         </div>
-           
-        
 
     );
 }
